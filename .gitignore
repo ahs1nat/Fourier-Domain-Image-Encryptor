@@ -1,0 +1,26 @@
+# Virtual environment
+venv/
+env/
+.venv/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Generated/sensitive project outputs — never commit real keys or ciphertexts
+data/keys/*
+!data/keys/.gitkeep
+outputs/ciphertext/*
+!outputs/ciphertext/.gitkeep
+
+# Streamlit
+.streamlit/
+
+# OS/editor junk
+.DS_Store
+Thumbs.db
+.vscode/settings.json
+
+# Env vars / secrets if you add any later
+.env
