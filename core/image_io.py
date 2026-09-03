@@ -1,42 +1,38 @@
+import cv2 as cv
 import numpy as np
-
-try:
-    import cv2 as cv
-except ImportError:
-    cv = None
-
-try:
-    from PIL import Image
-except ImportError:
-    Image = None
 
 
 def load_gray_img(image_path: str) -> np.ndarray:
-    if cv is not None:
-        img = cv.imread(image_path)
-        if img is None:
-            raise FileNotFoundError(f"Could not load image at: {image_path}")
-        gray = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
-        gray_normalized = gray.astype(np.float64) / 255.0
-        return gray_normalized
-    elif Image is not None:
-        img = Image.open(image_path).convert("L")
-        gray_normalized = np.array(img, dtype=np.float64) / 255.0
-        return gray_normalized
-    else:
-        raise ModuleNotFoundError(
-            "Neither OpenCV (cv2) nor PIL (Pillow) is available to load images."
-        )
+    img = cv.imread(image_path)
+    if img is None:
+        raise FileNotFoundError(f"Could not load image at: {image_path}")
+
+    gray = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
+    gray_normalized = gray.astype(np.float64) / 255.0
+    return gray_normalized
 
 
-def save_img_uint8(array: np.ndarray, output_path: str):
+def save_img_uint8(array: np.ndarray, output_path: str) -> None:
     clipped = np.clip(array, 0, 1)
     img_uint8 = (clipped * 255).astype(np.uint8)
-    if cv is not None:
-        cv.imwrite(output_path, img_uint8)
-    elif Image is not None:
-        Image.fromarray(img_uint8).save(output_path)
-    else:
-        raise ModuleNotFoundError(
-            "Neither OpenCV (cv2) nor PIL (Pillow) is available to save images."
+    cv.imwrite(output_path, img_uint8)
+
+
+def pad_to_canvas(img: np.ndarray, canvas_shape: tuple) -> tuple:
+    h, w = img.shape
+    canvas_h, canvas_w = canvas_shape
+
+    if h > canvas_h or w > canvas_w:
+        raise ValueError(
+            f"Image shape {img.shape} exceeds canvas shape {canvas_shape}. "
+            f"Choose a larger canvas size."
         )
+
+    padded = np.zeros(canvas_shape, dtype=img.dtype)
+    padded[:h, :w] = img
+    return padded, (h, w)
+
+
+def crop_from_canvas(img: np.ndarray, original_shape: tuple) -> np.ndarray:
+    h, w = original_shape
+    return img[:h, :w]
