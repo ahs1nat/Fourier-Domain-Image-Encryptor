@@ -1,0 +1,119 @@
+﻿===============================================================
+  Fourier-Domain Image Encryptor — Quick-Start Commands
+===============================================================
+
+All commands must be run from the project root directory:
+  c:\Users\Lenovo\Desktop\Fourier-Domain-Image-Encryptor\
+
+
+---------------------------------------------------------------
+  1. FIRST-TIME SETUP  (run once)
+---------------------------------------------------------------
+
+Create a virtual environment (if .venv does not exist yet):
+  python -m venv .venv
+
+Install all required packages:
+  .venv\Scripts\pip.exe install -r requirements.txt
+
+
+---------------------------------------------------------------
+  2. RUN THE STREAMLIT WEB APP  (recommended)
+---------------------------------------------------------------
+
+  .venv\Scripts\streamlit.exe run app.py
+
+Then open your browser at:
+  http://localhost:8501
+
+Tabs available:
+  - Encrypt   : Upload an image → generate keys → download
+                ciphertext (.npy) and key file (.pkl / .ekey)
+  - Decrypt   : Upload ciphertext + key file → recover image
+                Upload original to see PSNR / SSIM / MSE metrics
+                Run the Noise Robustness Tester from the expander
+  - Phase Mask Inspector : Generate and visualise random phase
+                           masks (real, imaginary, phase angle)
+
+Stop the server: press Ctrl+C in this terminal window.
+
+
+---------------------------------------------------------------
+  3. RUN THE CLI SCRIPT
+---------------------------------------------------------------
+
+  .venv\Scripts\python.exe main.py
+
+What it does:
+  - Creates data\sample_input.png if it does not exist
+  - Generates random phase masks P1 and P2
+  - Encrypts the image  -> outputs\encrypted.png
+  - Decrypts with the same keys -> outputs\decrypted.png
+  - Prints the max absolute reconstruction error
+
+
+---------------------------------------------------------------
+  4. RUN ALL UNIT TESTS
+---------------------------------------------------------------
+
+  .venv\Scripts\python.exe -m unittest discover -s tests -v
+
+Expected output:
+  Ran 6 tests in ~0.2s
+  OK
+
+
+---------------------------------------------------------------
+  5. USING ENCRYPTED KEY FILES (.ekey)
+---------------------------------------------------------------
+
+In the web app (Encrypt tab):
+  1. Toggle ON "Password-protect key file (.ekey)"
+  2. Enter a strong password
+  3. Encrypt and download drpe_keys.ekey
+
+In the web app (Decrypt tab):
+  1. Upload the ciphertext (.npy) as usual
+  2. Upload drpe_keys.ekey  (the app auto-detects .ekey)
+  3. Enter the same password used during encryption
+  4. Click Decrypt
+
+NOTE: .ekey files use AES-256 (Fernet) with PBKDF2-HMAC-SHA256
+      (480 000 iterations). Do NOT lose your password — there
+      is no recovery mechanism.
+
+
+---------------------------------------------------------------
+  6. RGB COLOUR IMAGE ENCRYPTION
+---------------------------------------------------------------
+
+In the web app (Encrypt tab):
+  1. Select "RGB (colour)" under Colour mode
+  2. Upload any colour PNG/JPG
+  3. Encrypt and download ciphertext + key file
+
+Decryption is fully automatic — the key file stores the mode
+and the Decrypt tab handles it transparently.
+
+
+---------------------------------------------------------------
+  7. PROJECT STRUCTURE
+---------------------------------------------------------------
+
+  app.py               — Streamlit web application
+  main.py              — CLI demo script
+  requirements.txt     — Python dependencies
+  core/
+    __init__.py        — Public exports
+    drpe.py            — DRPE encrypt / decrypt (gray + RGB)
+    image_io.py        — Image loading / saving helpers
+    key_library.py     — Key generation, save, load (+ AES-256)
+    metrics.py         — PSNR, SSIM, MSE, noise robustness
+  tests/
+    test_drpe.py       — Unit tests for DRPE core
+    test_key_library.py — Unit tests for key library
+  data/                — Input images
+  outputs/             — CLI output images
+
+
+===============================================================

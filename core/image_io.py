@@ -36,3 +36,15 @@ def pad_to_canvas(img: np.ndarray, canvas_shape: tuple) -> tuple:
 def crop_from_canvas(img: np.ndarray, original_shape: tuple) -> np.ndarray:
     h, w = original_shape
     return img[:h, :w]
+
+
+def load_color_img(image_path: str) -> np.ndarray:
+    """
+    Load an image and return a normalised float64 RGB array shaped (H, W, 3)
+    with values in [0, 1].
+    """
+    img = cv.imread(image_path)
+    if img is None:
+        raise FileNotFoundError(f"Could not load image at: {image_path}")
+    rgb = cv.cvtColor(img, cv.COLOR_BGR2RGB)
+    return rgb.astype(np.float64) / 255.0
