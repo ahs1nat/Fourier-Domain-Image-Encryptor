@@ -18,21 +18,42 @@ def save_img_uint8(array: np.ndarray, output_path: str) -> None:
     cv.imwrite(output_path, img_uint8)
 
 
-def pad_to_canvas(img: np.ndarray, canvas_shape: tuple) -> tuple:
-    h, w = img.shape
+def prepare_image_for_canvas(img: np.ndarray, canvas_shape: tuple = (512, 512)) -> tuple:
+    """
+    Prepares any input image to fit into a fixed canvas size (default 512x512).
+
+    - If the image is LARGER than canvas_shape in either dimension,
+      it is smart-resized (aspect-ratio preserved, shrunk to fit).
+    - If the image is SMALLER than canvas_shape, it is placed onto
+      a zero-padded canvas of exactly canvas_shape (no stretching).
+    - If it already matches canvas_shape, it's used as-is.
+
+    Returns:
+        (padded_image, original_shape_before_padding)
+        original_shape_before_padding is needed later to crop back
+        to the true content size after decryption.
+    """
     canvas_h, canvas_w = canvas_shape
+    h, w = img.shape
 
+    # Case 1: image too big in either dimension -> resize down, preserving aspect ratio
     if h > canvas_h or w > canvas_w:
-        raise ValueError(
-            f"Image shape {img.shape} exceeds canvas shape {canvas_shape}. "
-            f"Choose a larger canvas size."
-        )
+        scale = min(canvas_h / h, canvas_w / w)
+        new_h, new_w = int(h * scale), int(w * scale)
+        img = cv.resize(img, (new_w, new_h), interpolation=cv.INTER_AREA)
+        h, w = img.shape
 
+    # Case 2 & 3: pad (or exact fit, padding does nothing) onto canvas
     padded = np.zeros(canvas_shape, dtype=img.dtype)
     padded[:h, :w] = img
+
     return padded, (h, w)
 
 
-def crop_from_canvas(img: np.ndarray, original_shape: tuple) -> np.ndarray:
+def restore_original_size(decrypted: np.ndarray, original_shape: tuple) -> np.ndarray:
+    """
+    Crops the decrypted 512x512 image back down to the content region
+    that was placed there before encryption (removes the zero padding).
+    """
     h, w = original_shape
-    return img[:h, :w]
+    return decrypted[:h, :w]

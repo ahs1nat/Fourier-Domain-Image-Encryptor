@@ -1,7 +1,7 @@
 import pickle
 import string
 import secrets
-from core.drpe import generate_phase_mask
+from .drpe import generate_phase_mask
 
 def generate_label() -> str:
     alphabet = string.ascii_uppercase + string.digits
