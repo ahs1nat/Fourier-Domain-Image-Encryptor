@@ -62,4 +62,4 @@ def decrypt_rgb(ciphertext_rgb: np.ndarray, P1: np.ndarray, P2: np.ndarray) -> n
     return np.clip(
         np.stack([decrypt(ciphertext_rgb[:, :, c], P1, P2) for c in range(3)], axis=2),
         0, 1,
-    )
+    )

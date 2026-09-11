@@ -1,60 +1,70 @@
 import os
 import numpy as np
-from core import load_gray_img, save_img_uint8, generate_phase_mask, encrypt, decrypt
+from core import (
+    load_gray_img, save_img_uint8,
+    prepare_image_for_canvas, restore_original_size,
+    generate_key_pairs, save_library, load_library, get_pair,
+    encrypt, decrypt,
+)
+from utils.metrics import image_score
+
+CANVAS_SHAPE = (512, 512)
 
 
 def main():
-    os.makedirs("data", exist_ok=True)
+    os.makedirs("data/keys", exist_ok=True)
     os.makedirs("outputs", exist_ok=True)
 
-    input_path = os.path.join("data", "sample_input.png")
-    cipher_path = os.path.join("outputs", "encrypted.png")
-    decrypted_path = os.path.join("outputs", "decrypted.png")
+    input_path = "data/sample_input.png"
+    library_path = "data/keys/test_library.pkl"
+    cipher_path = "outputs/encrypted.png"
+    shape_path = "outputs/original_shape.txt"
+    decrypted_path = "outputs/decrypted.png"
 
-    # 1. Create a sample test image if input.png does not exist
-    if not os.path.exists(input_path):
-        print(f"Creating a sample image at {input_path}...")
-        sample_img = np.zeros((256, 256), dtype=np.uint8)
-        # Draw a square and a circle pattern
-        sample_img[64:192, 64:192] = 180
-        y, x = np.ogrid[:256, :256]
-        mask = (x - 128) ** 2 + (y - 128) ** 2 <= 40**2
-        sample_img[mask] = 255
-        save_img_uint8(sample_img / 255.0, input_path)
+    # 1. A loads the image and fits it onto the 512x512 canvas
+    raw_image = load_gray_img(input_path)
+    image, original_shape = prepare_image_for_canvas(raw_image, CANVAS_SHAPE)
 
-    # 2. Load input image as normalized grayscale array [0, 1]
-    print(f"Loading image from {input_path}...")
-    image = load_gray_img(input_path)
+    # Save original_shape so B knows how much to crop later
+    with open(shape_path, "w") as f:
+        f.write(f"{original_shape[0]},{original_shape[1]}")
 
-    # 3. Generate phase mask keys (P1 and P2)
-    print("Generating random phase masks (P1, P2)...")
-    P1 = generate_phase_mask(image.shape)
-    P2 = generate_phase_mask(image.shape)
+    # 2. A creates/loads the 10-key library, sized to the canvas
+    if os.path.exists(library_path):
+        library = load_library(library_path)
+    else:
+        library = generate_key_pairs(n=10, canvas_shape=CANVAS_SHAPE)
+        save_library(library, library_path)
 
-    # 4. Encrypt the image
-    print("Encrypting image with DRPE...")
+    # 3. A picks one key and encrypts
+    labels = list(library.keys())
+    chosen_label = labels[3]
+    P1, P2 = get_pair(library, chosen_label)
     ciphertext = encrypt(image, P1, P2)
+    save_img_uint8(np.abs(ciphertext), cipher_path)
+    print(f"A encrypted the image using: {chosen_label}")
 
-    # Save visualization of ciphertext (magnitude normalized)
-    cipher_magnitude = np.abs(ciphertext)
-    cipher_normalized = (cipher_magnitude - cipher_magnitude.min()) / (
-        cipher_magnitude.max() - cipher_magnitude.min() + 1e-12
-    )
-    save_img_uint8(cipher_normalized, cipher_path)
-    print(f"Encrypted ciphertext visualization saved to {cipher_path}")
+    # 4. B tries every key pair and picks the most "real-looking" result
+    best_label, best_score, best_image = None, float("inf"), None
+    for label, pair in library.items():
+        attempt = decrypt(ciphertext, pair["P1"], pair["P2"])
+        score = image_score(attempt)
+        print(f"Trying {label}: score = {score:.4f}")
+        if score < best_score:
+            best_label, best_score, best_image = label, score, attempt
+            
+    if best_image is None:
+        raise RuntimeError("Brute force failed: key library was empty.")
 
-    # 5. Decrypt using the same phase keys
-    print("Decrypting ciphertext with original keys (P1, P2)...")
-    decrypted_image = decrypt(ciphertext, P1, P2)
+    # 5. B crops the result back to the original image size
+    with open(shape_path) as f:
+        h, w = map(int, f.read().split(","))
+    final_image = restore_original_size(best_image, (h, w))
 
-    # Save reconstructed decrypted image
-    save_img_uint8(decrypted_image, decrypted_path)
-    print(f"Decrypted image saved to {decrypted_path}")
-
-    # Calculate reconstruction error
-    diff = np.max(np.abs(image - decrypted_image))
-    print(f"Max absolute difference between original and decrypted: {diff:.2e}")
-    print("Done!")
+    save_img_uint8(final_image, decrypted_path)
+    print(f"\nB's best guess: {best_label}")
+    print(f"Correct key was: {chosen_label}")
+    print(f"Match: {best_label == chosen_label}")
 
 
 if __name__ == "__main__":
