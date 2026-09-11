@@ -29,3 +29,37 @@ def decrypt(ciphertext: np.ndarray, P1: np.ndarray, P2: np.ndarray) -> np.ndarra
     step3 = np.fft.ifft2(step2)
     decrypted = step3 * np.conj(P1)
     return np.abs(decrypted)
+
+
+def encrypt_rgb(image_rgb: np.ndarray, P1: np.ndarray, P2: np.ndarray) -> np.ndarray:
+    """
+    Encrypt a normalised RGB image [H, W, 3] using DRPE applied per channel.
+
+    Parameters
+    ----------
+    image_rgb : float64 array shaped (H, W, 3), values in [0, 1]
+    P1, P2    : phase masks shaped (H, W)
+
+    Returns
+    -------
+    complex128 array shaped (H, W, 3)
+    """
+    if image_rgb.ndim != 3 or image_rgb.shape[2] != 3:
+        raise ValueError(f"Expected RGB image (H, W, 3), got {image_rgb.shape}")
+    return np.stack([encrypt(image_rgb[:, :, c], P1, P2) for c in range(3)], axis=2)
+
+
+def decrypt_rgb(ciphertext_rgb: np.ndarray, P1: np.ndarray, P2: np.ndarray) -> np.ndarray:
+    """
+    Decrypt a complex RGB ciphertext [H, W, 3] using DRPE applied per channel.
+
+    Returns
+    -------
+    float64 array shaped (H, W, 3), clipped to [0, 1]
+    """
+    if ciphertext_rgb.ndim != 3 or ciphertext_rgb.shape[2] != 3:
+        raise ValueError(f"Expected RGB ciphertext (H, W, 3), got {ciphertext_rgb.shape}")
+    return np.clip(
+        np.stack([decrypt(ciphertext_rgb[:, :, c], P1, P2) for c in range(3)], axis=2),
+        0, 1,
+    )

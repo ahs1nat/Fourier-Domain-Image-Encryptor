@@ -52,6 +52,9 @@ def main():
         print(f"Trying {label}: score = {score:.4f}")
         if score < best_score:
             best_label, best_score, best_image = label, score, attempt
+            
+    if best_image is None:
+        raise RuntimeError("Brute force failed: key library was empty.")
 
     # 5. B crops the result back to the original image size
     with open(shape_path) as f:
