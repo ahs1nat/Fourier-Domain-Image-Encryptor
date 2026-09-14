@@ -10,7 +10,6 @@ from core import (
     generate_key_pairs, save_library, load_library, get_pair,
     save_library_encrypted,
     encrypt, decrypt, encrypt_rgb, decrypt_rgb,
-    prepare_image_for_canvas, restore_original_size
 )
 
 from utils.metrics import image_score, compute_image_hash
@@ -99,8 +98,6 @@ with tab_a:
             with col2:
                 st.markdown("Ciphertext (what an attacker without the key sees)")
                 st.image(cipher_norm, caption="Encrypted image (magnitude visualization)")
-
-            # ekey_path = io.BytesIO()
 
             import tempfile
 

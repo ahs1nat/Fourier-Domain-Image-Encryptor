@@ -2,8 +2,6 @@ from .drpe import generate_phase_mask, encrypt, decrypt, encrypt_rgb, decrypt_rg
 from .image_io import (
     load_gray_img,
     save_img_uint8,
-    prepare_image_for_canvas,
-    restore_original_size,
     load_color_img,
 )
 from .key_library import (
@@ -24,8 +22,6 @@ __all__ = [
     "load_gray_img",
     "load_color_img",
     "save_img_uint8",
-    "prepare_image_for_canvas",
-    "restore_original_size",
     "generate_key_pairs",
     "save_library",
     "load_library",
