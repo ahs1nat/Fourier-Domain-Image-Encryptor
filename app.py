@@ -91,10 +91,11 @@ with tab_a:
             cipher_mag = np.abs(ciphertext) if not is_color else np.mean(np.abs(ciphertext), axis=2)
             cipher_norm = (cipher_mag - cipher_mag.min()) / (cipher_mag.max() - cipher_mag.min() + 1e-12)
 
-            st.markdown("Ciphertext (what an attacker without the key sees)")
+            
             col1, col2, col3 = st.columns([1, 1, 1])
             with col2:
-                st.image(cipher_norm, caption="Encrypted image (magnitude visualization)", width=512)
+                st.markdown("Ciphertext (what an attacker without the key sees)")
+                st.image(cipher_norm, caption="Encrypted image (magnitude visualization)")
 
             key_bundle = {
                 "library": res["library"],
