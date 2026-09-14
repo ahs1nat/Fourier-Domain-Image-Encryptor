@@ -4,7 +4,7 @@ def generate_phase_mask(shape: tuple) -> np.ndarray: # P1
     random_phase = np.random.rand(*shape) # * unpacks the shape tuple
     # all values in random_phase are between 0 (inclusive) and 1 (exclusive)
 
-    phase_mask = np.exp(1j * 2 * np.pi * random_phase)
+    phase_mask = np.exp(1j * 2 * np.pi * random_phase) # complex number e convert
 
     return phase_mask
 

@@ -8,6 +8,7 @@ import io
 
 from core import (
     generate_key_pairs, save_library, load_library, get_pair,
+    save_library_encrypted,
     encrypt, decrypt, encrypt_rgb, decrypt_rgb,
     prepare_image_for_canvas, restore_original_size
 )
@@ -56,7 +57,8 @@ with tab_a:
         col1, col2, col3 = st.columns([1, 1, 1])
         with col2:
             st.image(img_array, caption=f"Uploaded image ({img_array.shape[:2]})")
-            encrypt_btn = st.button("🔒 Encrypt", width="stretch")
+            password = st.text_input("🔑 Enter a password for the key file:", type="password", help="B will need this password to open the .ekey file.")
+            encrypt_btn = st.button("🔒 Encrypt", width="stretch", disabled=not password)
 
         if encrypt_btn:
 
@@ -80,6 +82,7 @@ with tab_a:
                 "original_hash": original_hash,
                 "image_shape": image_shape,
                 "chosen_label": chosen_label,
+                "password" : password
             }
 
         if "enc_result" in st.session_state:
@@ -97,16 +100,28 @@ with tab_a:
                 st.markdown("Ciphertext (what an attacker without the key sees)")
                 st.image(cipher_norm, caption="Encrypted image (magnitude visualization)")
 
-            key_bundle = {
+            # ekey_path = io.BytesIO()
+
+            import tempfile
+
+            with tempfile.NamedTemporaryFile(suffix=".ekey", delete=False) as tmp:
+                temp_path = tmp.name
+
+            full_bundle = {
                 "library": res["library"],
                 "is_color": res["is_color"],
                 "original_hash": res["original_hash"],
                 "image_shape": res["image_shape"],
             }
 
-            pkl_buf = io.BytesIO() # an empty virtual file that lives only in the RAM
-            pickle.dump(key_bundle, pkl_buf)
-            pkl_buf.seek(0) # pointer k shamne ane
+            save_library_encrypted(full_bundle, temp_path, res["password"])
+
+            with open(temp_path, "rb") as f:
+                ekey_buf = io.BytesIO(f.read())
+
+            os.remove(temp_path)
+
+            ekey_buf.seek(0)
 
             npy_buf = io.BytesIO()
             np.save(npy_buf, ciphertext)
@@ -117,14 +132,14 @@ with tab_a:
             dl1, dl2 = st.columns(2)
             with dl1:
                 st.download_button(
-                    "⬇️ Key library (.pkl) — send to B beforehand",
-                    data=pkl_buf,
-                    file_name="key_library.pkl",
-                    mime="application/octet-stream", # MIME is a label that tells the browser what kind of data this file contains
+                    "⬇️ Encrypted key library (.ekey)",
+                    data=ekey_buf,
+                    file_name="key_library.ekey",
+                    mime="application/octet-stream",
                 )
             with dl2:
                 st.download_button(
-                    "⬇️ Encrypted image (.npy) — send to B when ready",
+                    "⬇️ Encrypted image (.npy)",
                     data=npy_buf,
                     file_name="ciphertext.npy",
                     mime="application/octet-stream",

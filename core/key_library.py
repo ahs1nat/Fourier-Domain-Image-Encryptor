@@ -9,7 +9,7 @@ from .drpe import generate_phase_mask
 _SALT_BYTES = 32
 _PBKDF2_ITERATIONS = 480_000
 
-def generate_label() -> str:
+def generate_label() -> str: # P1 P2 er jonno identifier
     alphabet = string.ascii_uppercase + string.digits
     part1 = "".join(secrets.choice(alphabet) for _ in range(4))
     part2 = "".join(secrets.choice(alphabet) for _ in range(4))
@@ -60,13 +60,15 @@ def load_library(path: str) -> dict:
 
 
 def get_pair(pairs_dict: dict, label: str) -> tuple:
-    """
-    Retrieve (P1, P2) for a given label.
-    Raises KeyError with a clear message if label doesn't exist.
-    """
     if label not in pairs_dict:
         raise KeyError(f"Label '{label}' not found in key library.")
     entry = pairs_dict[label]
+    """
+    {
+    "P1": ...,
+    "P2": ...
+    }
+    """
     return entry["P1"], entry["P2"]
 
 
@@ -85,8 +87,9 @@ def _derive_fernet_key(password: str, salt: bytes) -> bytes:
     )
     return base64.urlsafe_b64encode(kdf.derive(password.encode("utf-8")))
 
+# Password + Random salt -> PBKDF2 -> 32-byte key -> Fernet key
 
-def save_library_encrypted(pairs_dict: dict, path: str, password: str) -> None:
+def save_library_encrypted(bundle: dict, path: str, password: str) -> None:
     """
     Encrypt *pairs_dict* with AES-256 (Fernet) and save to *path* (.ekey).
 
@@ -101,7 +104,7 @@ def save_library_encrypted(pairs_dict: dict, path: str, password: str) -> None:
 
     salt = os.urandom(_SALT_BYTES)
     fernet_key = _derive_fernet_key(password, salt)
-    token = Fernet(fernet_key).encrypt(pickle.dumps(pairs_dict))
+    token = Fernet(fernet_key).encrypt(pickle.dumps(bundle))
     with open(path, "wb") as fp:
         fp.write(salt + token)
 
