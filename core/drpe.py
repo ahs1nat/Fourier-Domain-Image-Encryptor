@@ -27,7 +27,7 @@ def decrypt(ciphertext: np.ndarray, P1: np.ndarray, P2: np.ndarray) -> np.ndarra
     step1 = np.fft.fft2(ciphertext)
     step2 = step1 * np.conj(P2)
     step3 = np.fft.ifft2(step2)
-    decrypted = step3 * np.conj(P1)
+    decrypted = step3 * np.conj(P1) 
     return np.abs(decrypted)
 
 
