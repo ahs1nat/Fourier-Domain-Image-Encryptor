@@ -41,7 +41,7 @@ class TestDRPE(unittest.TestCase):
 
 
     def test_image_hash_match_discrete_pixels(self):
-        from utils.metrics import compute_image_hash
+        from core.metrics import compute_image_hash
         shape = (64, 64)
         # Create discrete 8-bit normalized image
         image = np.round(np.random.rand(*shape) * 255) / 255.0

@@ -2,7 +2,10 @@
 core/metrics.py
 ===============
 Image quality and security evaluation metrics for DRPE-encrypted images.
+Includes brute-force helpers (image_score, compute_image_hash) consolidated
+from the former utils/metrics.py.
 """
+import hashlib
 import io
 import numpy as np
 import matplotlib
@@ -146,3 +149,25 @@ def histogram_comparison_image(
     plt.close(fig)
     buf.seek(0)
     return Image.open(buf).copy()
+
+
+def image_score(image: np.ndarray) -> float:
+    """
+    Simple 'does this look like a real image or noise' score, used for
+    brute-force key guessing. Real images are smooth (low pixel-to-pixel
+    change); noise is not. Lower score = more likely to be the correct key.
+    """
+    diff_x = np.diff(image, axis=1)
+    diff_y = np.diff(image, axis=0)
+    return float(np.mean(np.abs(diff_x)) + np.mean(np.abs(diff_y)))
+
+
+def compute_image_hash(image: np.ndarray) -> str:
+    """
+    Compute a SHA-256 hash of an image's pixel data, used to verify
+    whether a decryption attempt exactly matches the original image.
+    Quantizes to uint8 first so tiny floating-point differences from
+    FFT math don't cause false mismatches.
+    """
+    img_bytes = np.round(np.clip(image, 0, 1) * 255).astype(np.uint8).tobytes()
+    return hashlib.sha256(img_bytes).hexdigest()

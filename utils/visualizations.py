@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import numpy as np
 import matplotlib.pyplot as plt
-from utils.metrics import psnr, mse, image_score
+from core.metrics import psnr, mse, image_score
 
 
 def create_histogram_fig(original: np.ndarray, ciphertext: np.ndarray, decrypted: np.ndarray | None = None):
