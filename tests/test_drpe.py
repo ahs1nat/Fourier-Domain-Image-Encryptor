@@ -40,5 +40,21 @@ class TestDRPE(unittest.TestCase):
             decrypt(ciphertext, P_wrong_shape, P2)
 
 
+    def test_image_hash_match_discrete_pixels(self):
+        from utils.metrics import compute_image_hash
+        shape = (64, 64)
+        # Create discrete 8-bit normalized image
+        image = np.round(np.random.rand(*shape) * 255) / 255.0
+        P1 = generate_phase_mask(shape)
+        P2 = generate_phase_mask(shape)
+
+        ciphertext = encrypt(image, P1, P2)
+        decrypted_image = decrypt(ciphertext, P1, P2)
+
+        self.assertEqual(compute_image_hash(image), compute_image_hash(decrypted_image))
+
+
 if __name__ == "__main__":
     unittest.main()
+
+
