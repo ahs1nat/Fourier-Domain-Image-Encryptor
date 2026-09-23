@@ -16,7 +16,7 @@ from PIL import Image
 
 from core import encrypt, decrypt, encrypt_rgb, decrypt_rgb, generate_phase_mask
 from core.key_library import (
-    generate_key_pairs, save_library, load_library, get_pair,
+    generate_key_pairs, get_pair,
     save_library_encrypted, load_library_encrypted,
 )
 from core.metrics import image_score, compute_image_hash, psnr, mse
@@ -38,11 +38,18 @@ st.set_page_config(
 st.markdown(
     """
     <style>
+    * {
+    font-family: "Inter",
+                 "Segoe UI Emoji",
+                 "Noto Color Emoji",
+                 "Apple Color Emoji",
+                 "Segoe UI",
+                 sans-serif;
+    }
     /* Global Page Styling */
     .stApp {
         background: linear-gradient(135deg, #0b0d12 0%, #161b26 50%, #0d111a 100%);
         color: #E6EDF3;
-        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     }
 
     /* Header Styling */
@@ -138,7 +145,7 @@ st.markdown(
     """,
     unsafe_allow_html=True,
 )
-st.divider()
+# st.divider()
 
 # App Header
 st.markdown('<div class="main-header">🔐 Fourier Domain Image Encryptor</div>', unsafe_allow_html=True)
@@ -154,8 +161,8 @@ def uploaded_file_to_array(file):
 
 # Tab Setup
 tab_a, tab_b, tab_c, tab_d = st.tabs([
-    "🔒 A — Encrypt",
-    "🔓 B — Decrypt & Brute-Force",
+    "🔒 Encrypt",
+    "🔓 Decrypt",
     "🔍 Phase Mask Inspector",
     "📘 How DRPE Works"
 ])
@@ -164,8 +171,15 @@ tab_a, tab_b, tab_c, tab_d = st.tabs([
 # TAB A: ENCRYPTION
 # ==============================================================================
 with tab_a:
-    st.markdown("### 🔒 Encrypt Image with DRPE Key Library")
-    st.caption("Upload an image to generate a 10-key phase mask library ($P_1, P_2$) and produce a stationary white noise ciphertext.")
+    st.markdown("<h3 style='text-align: center;'>🔒 Encrypt Image with DRPE Key Library</h3>", unsafe_allow_html=True)
+    st.caption(
+        "<p style='text-align: center;'>Upload an image to generate a 10-key phase mask library ($P_1, P_2$) and produce a noise-like ciphertext.</p>",
+            unsafe_allow_html=True
+    )
+    uploaded_file = st.file_uploader(label="Choose an image to encrypt:", type=["png", "jpg", "jpeg"])
+
+    if uploaded_file is None:
+        st.session_state.pop("enc_result", None)
 
     img_array = None
     is_color = False
@@ -175,16 +189,16 @@ with tab_a:
     col1, col2 = st.columns([1, 1], gap="medium")
 
     with col1:
-        st.markdown('<div class="glass-card">', unsafe_allow_html=True)
-        uploaded_file = st.file_uploader(label="Choose an image to encrypt:", type=["png", "jpg", "jpeg"])
+        #st.markdown('<div class="glass-card">', unsafe_allow_html=True)
 
         if uploaded_file is not None:
             img_array, is_color = uploaded_file_to_array(uploaded_file)
+            st.markdown("##### Uploaded image")
             st.image(img_array, caption=f"Original Image ({img_array.shape[1]}x{img_array.shape[0]} | {'RGB' if is_color else 'Grayscale'})", width='stretch')
 
             password = st.text_input("🔑 Password for Key File (.ekey):", type="password", help="The recipient will require this password to unlock the .ekey file.")
             encrypt_btn = st.button("🔒 Execute DRPE Encryption", width='stretch', disabled=not password)
-        st.markdown('</div>', unsafe_allow_html=True)
+        #st.markdown('</div>', unsafe_allow_html=True)
 
     with col2:
         if uploaded_file is not None and img_array is not None and encrypt_btn:
@@ -222,9 +236,10 @@ with tab_a:
             cipher_mag = np.abs(ciphertext) if not is_color else np.mean(np.abs(ciphertext), axis=2)
             cipher_norm = (cipher_mag - cipher_mag.min()) / (cipher_mag.max() - cipher_mag.min() + 1e-12)
 
-            st.markdown('<div class="glass-card">', unsafe_allow_html=True)
-            st.markdown("#### Ciphertext Output")
-            st.image(cipher_norm, caption="Encrypted Magnitude Spectrum (Stationary White Noise)", width='stretch')
+            #st.markdown('<div class="glass-card">', unsafe_allow_html=True)
+            #st.write("")
+            st.markdown("##### Ciphertext Output")
+            st.image(cipher_norm, caption="Encrypted Magnitude Spectrum (Noise-like Ciphertext)", width='stretch')
 
             with tempfile.NamedTemporaryFile(suffix=".ekey", delete=False) as tmp:
                 temp_path = tmp.name
@@ -245,6 +260,8 @@ with tab_a:
             npy_buf = io.BytesIO()
             np.save(npy_buf, ciphertext)
             npy_buf.seek(0)
+
+            st.markdown("<div style='height: 5px;'></div>", unsafe_allow_html=True)
 
             st.success("✅ Encryption Complete!")
 
@@ -270,7 +287,7 @@ with tab_a:
     # Pixel Intensity Histogram Analysis
     if "enc_result" in st.session_state:
         st.markdown("---")
-        st.markdown("### 📊 Cryptographic Randomness & Pixel Distribution Analysis")
+        st.markdown("### 📊 Pixel Distribution Analysis")
         res = st.session_state["enc_result"]
         fig_hist = create_histogram_fig(res["original_image"], res["ciphertext"])
         st.pyplot(fig_hist)
