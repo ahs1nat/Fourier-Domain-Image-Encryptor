@@ -1,9 +1,6 @@
-<<<<<<< Updated upstream
-# Fourier-Domain-Image-Encryptor
-=======
 # 🔐 Fourier-Domain Image Encryptor
 
-An optical cryptography suite implementing **Double Random Phase Encoding (DRPE)** in the Fourier domain. Supports grayscale and full-colour RGB image encryption, password-protected key storage (AES-256), quantitative reconstruction metrics (PSNR, MSE, SSIM, Entropy), noise robustness testing, and a modern Streamlit web interface.
+An optical cryptography suite implementing **Double Random Phase Encoding (DRPE)** in the Fourier domain using a 4-$f$ optical correlator architecture. Supports grayscale and full-colour RGB image encryption, password-protected key library storage (AES-256), quantitative reconstruction metrics (PSNR, MSE, SSIM), pixel intensity distribution histograms, real-time brute-force key match scoring, and a modern glassmorphic Streamlit web application.
 
 ---
 
@@ -11,29 +8,30 @@ An optical cryptography suite implementing **Double Random Phase Encoding (DRPE)
 
 - **Double Random Phase Encoding (DRPE)**:
   - 2D Fast Fourier Transform (FFT)-based optical image encryption.
-  - Spatial domain mask ($P_1$) and Fourier domain spectral mask ($P_2$).
+  - Spatial domain mask ($P_1$) and Fourier plane spectral mask ($P_2$).
   - Theoretical near-zero reconstruction error ($\sim 10^{-15}$ float precision).
+  - Discrete 8-bit rounding exact **SHA-256** hash match verification.
 - **RGB & Grayscale Processing**:
   - Independent channel-wise encryption and decryption for full-colour RGB images.
   - Automatic padding to standardized canvas sizes with exact crop-back on recovery.
 - **Secure Key Management**:
   - Unique human-readable key identifiers (`KEY-XXXX-YYYY`).
-  - Standard `.pkl` key bundles and AES-256 password-protected `.ekey` files using **PBKDF2-HMAC-SHA256** (480,000 iterations).
-- **Cryptographic & Quality Metrics**:
-  - Peak Signal-to-Noise Ratio (**PSNR**), Mean Squared Error (**MSE**), and Structural Similarity Index (**SSIM**).
-  - Shannon Entropy calculation for ciphertext randomness verification.
-- **Transmission & Noise Robustness Simulator**:
-  - Simulate real-world transmission channel noise: **Gaussian noise** and **Salt-and-Pepper noise**.
-  - Evaluate image recovery fidelity under varied noise intensities.
+  - Password-protected `.ekey` bundles using **AES-256 (Fernet)** with **PBKDF2-HMAC-SHA256** (480,000 iterations).
+- **Cryptographic Analytics & Quality Metrics**:
+  - **Pixel Intensity Histograms**: Compare original pixel distribution vs. ciphertext magnitude (stationary white noise) vs. decrypted image.
+  - **Brute-Force Key Match Score Plot**: Live bar chart rendered during decryption showing the exact image smoothness gradient score for each tested key.
+  - **Phase Mask Inspector**: 2D spatial phase maps and 1D angle distribution histograms $[0, 2\pi]$ to verify uniform randomness.
+- **Interactive Visual Pipeline Inspector**:
+  - Step-by-step visual walkthrough of all 6 mathematical stages of the DRPE 4-$f$ optical correlator system.
 - **Dual Interfaces**:
-  - **Streamlit Web Application**: Modern dark-mode glassmorphic dashboard with live phase mask inspection.
-  - **Python CLI**: Standalone pipeline for automated batch workflows and quick testing.
+  - **Streamlit Web Application**: Modern dark-mode glassmorphic dashboard.
+  - **Python CLI**: Standalone pipeline script for quick testing and automated batch workflows.
 
 ---
 
 ## 📐 Mathematical Principle: DRPE
 
-Double Random Phase Encoding simulates a 4-$f$ optical correlator:
+Double Random Phase Encoding simulates a 4-$f$ optical correlator system:
 
 ```text
 Input Image I(x, y)
@@ -60,7 +58,7 @@ $$
 \text{Decrypted Image} = \left| \mathcal{F}^{-1}\left\lbrace \mathcal{F}\lbrace C(x, y) \rbrace \cdot P_2^{\ast}(u, v) \right\rbrace \cdot P_1^{\ast}(x, y) \right|
 $$
 
-Where $P_1^{\ast}$ and $P_2^{\ast}$ denote the complex conjugates of phase masks $P_1$ and $P_2$. Without both correct masks, decryption yields zero visual information and appears as random noise.
+Where $P_1^{\ast}$ and $P_2^{\ast}$ denote the complex conjugates of phase masks $P_1$ and $P_2$. Without both correct phase masks, decryption yields zero visual information and appears as random noise.
 
 ---
 
@@ -68,18 +66,20 @@ Where $P_1^{\ast}$ and $P_2^{\ast}$ denote the complex conjugates of phase masks
 
 ```text
 Fourier-Domain-Image-Encryptor/
-├── app.py                  # Streamlit web application
+├── app.py                  # Streamlit web application (Glassmorphic UI & 4 Tabs)
 ├── main.py                 # Standalone CLI demo script
 ├── cmd.txt                 # Quick command reference
 ├── requirements.txt        # Python package dependencies
 ├── core/
 │   ├── __init__.py         # Core package exports
-│   ├── drpe.py             # DRPE encryption/decryption (Grayscale & RGB)
-│   ├── image_io.py         # Image loading, saving, and canvas padding
-│   ├── key_library.py      # Key generation, management & AES-256 encryption
-│   └── metrics.py          # PSNR, SSIM, MSE, Entropy & noise robustness
+│   ├── drpe.py             # DRPE encryption/decryption engine (Grayscale & RGB)
+│   ├── image_io.py         # Image loading, saving, and canvas padding helpers
+│   └── key_library.py      # Key pair generation & AES-256 encrypted storage
+├── utils/
+│   ├── metrics.py          # PSNR, MSE, image smoothness score, SHA-256 hash
+│   └── visualizations.py   # Pixel histograms, phase spectra, key score bar charts
 ├── tests/
-│   ├── test_drpe.py        # Unit tests for DRPE mathematics & edge cases
+│   ├── test_drpe.py        # Unit tests for DRPE mathematics & hash matching
 │   └── test_key_library.py # Unit tests for key storage & serialization
 ├── data/                   # Input sample images
 └── outputs/                # CLI generated ciphertexts and decrypted images
@@ -116,18 +116,24 @@ pip install -r requirements.txt
 
 ### 2. Run the Streamlit Web Application
 
-Launch the interactive UI:
+Launch the interactive web UI:
 
 ```bash
 streamlit run app.py
 ```
 
+*or via virtual environment executable:*
+```bash
+.venv\Scripts\streamlit.exe run app.py
+```
+
 Then open your browser at `http://localhost:8501`.
 
-#### Available Tabs:
-1. **Encrypt**: Upload an image (PNG, JPG), choose grayscale or RGB, generate or select key pairs, optionally encrypt the key with a password (`.ekey`), and download ciphertext (`.npy`) and keys.
-2. **Decrypt**: Upload ciphertext and corresponding key file, decrypt image, and view PSNR/SSIM/MSE metrics. Includes the **Noise Robustness Tester** expander.
-3. **Phase Mask Inspector**: Visualize real, imaginary, and phase angle components of generated random phase masks.
+#### Available Web Tabs:
+1. **🔒 A — Encrypt**: Upload an image, generate a 10-key phase mask library, set a password for the `.ekey` bundle, download ciphertext (`.npy`) and key library, and inspect pixel distribution histograms.
+2. **🔓 B — Decrypt & Brute-Force**: Upload `.ekey` and `.npy`, unlock with password, evaluate key library against ciphertext with real-time bar chart scoring, verify SHA-256 hash match, view PSNR/SSIM/MSE metric cards, and plot 3-panel intensity distribution histograms.
+3. **🔍 Phase Mask Inspector**: Visualize 2D spatial ($P_1$) and Fourier spectral ($P_2$) phase maps alongside 1D angle distribution histograms $[0, 2\pi]$.
+4. **📘 How DRPE Works**: Step through an interactive 6-stage visual pipeline inspector showing the exact magnitude and phase outputs across all intermediate mathematical stages of DRPE.
 
 ---
 
@@ -160,7 +166,7 @@ python -m unittest discover -s tests -v
 
 ## 🔒 Security Specifications
 
-- **Phase Masks**: Uniformly distributed independent random variables $r_1, r_2 \sim \mathcal{U}[0, 1)$ over the complex unit circle.
+- **Phase Masks**: Uniformly distributed independent random variables $r_1, r_2 \sim \mathcal{U}[0, 1)$ over the complex unit circle $e^{j 2\pi r}$.
 - **Key File Encryption (`.ekey`)**:
   - **Algorithm**: AES-256 in CBC mode with HMAC (Fernet).
   - **Key Derivation Function**: PBKDF2-HMAC-SHA256.
@@ -172,4 +178,3 @@ python -m unittest discover -s tests -v
 ## 📜 License
 
 Distributed under the MIT License. See `LICENSE` for more information.
->>>>>>> Stashed changes
