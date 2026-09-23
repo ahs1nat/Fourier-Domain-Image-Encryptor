@@ -176,7 +176,13 @@ with tab_a:
         "<p style='text-align: center;'>Upload an image to generate a 10-key phase mask library ($P_1, P_2$) and produce a noise-like ciphertext.</p>",
             unsafe_allow_html=True
     )
-    uploaded_file = st.file_uploader(label="Choose an image to encrypt:", type=["png", "jpg", "jpeg"])
+    col1, col2, col3 = st.columns([1, 1, 1])
+    with col2:
+        uploaded_file = st.file_uploader(
+        label="Choose an image to encrypt:",
+        type=["png", "jpg", "jpeg"]
+    )
+    #uploaded_file = st.file_uploader(label="Choose an image to encrypt:", type=["png", "jpg", "jpeg"])
 
     if uploaded_file is None:
         st.session_state.pop("enc_result", None)
@@ -297,127 +303,183 @@ with tab_a:
 # TAB B: DECRYPTION & BRUTE-FORCE
 # ==============================================================================
 with tab_b:
-    st.markdown("### 🔓 Decrypt Ciphertext & Key Library Brute-Force")
-    st.caption("Upload the `.ekey` library and `.npy` ciphertext to unlock the key bundle and identify the matching phase mask.")
+    st.markdown("<h3 style='text-align: center;'>🔓 Decrypt Ciphertext & Key Library Brute-Force</h3>", unsafe_allow_html=True)
+    st.caption(
+        "<p style='text-align: center;'>Upload the `.ekey` library and `.npy` ciphertext to unlock the key bundle and identify the matching phase mask.</p>",
+        unsafe_allow_html=True
+    )
 
-    dec_password = ""
-    decrypt_btn = False
-
-    col1, col2 = st.columns([1, 1], gap="medium")
-
-    with col1:
-        st.markdown('<div class="glass-card">', unsafe_allow_html=True)
+    left, center, right = st.columns([1, 2, 1])
+    with center:
         ekey_file = st.file_uploader("Upload Key Library (.ekey):", type=["ekey"])
         npy_file = st.file_uploader("Upload Ciphertext (.npy):", type=["npy"])
+
+        if ekey_file is None or npy_file is None:
+            st.session_state.pop("dec_result", None)
+
+        dec_password = ""
+        decrypt_btn = False
 
         if ekey_file and npy_file:
             dec_password = st.text_input("🔑 Password to unlock .ekey:", type="password")
             decrypt_btn = st.button("🔓 Decrypt & Brute-Force Keys", width='stretch', disabled=not dec_password)
-        st.markdown('</div>', unsafe_allow_html=True)
 
-    with col2:
-        if ekey_file and npy_file and decrypt_btn:
-            with tempfile.NamedTemporaryFile(suffix=".ekey", delete=False) as tmp:
-                tmp.write(ekey_file.read())
-                temp_ekey_path = tmp.name
+    progress_bar = st.empty()
+    status_text = st.empty()
 
-            try:
-                bundle = load_library_encrypted(temp_ekey_path, dec_password)
-                ciphertext = np.load(npy_file)
-                library = bundle["library"]
-                is_color = bundle["is_color"]
-                original_hash = bundle["original_hash"]
+    if ekey_file and npy_file and decrypt_btn:
+        with tempfile.NamedTemporaryFile(suffix=".ekey", delete=False) as tmp:
+            tmp.write(ekey_file.read())
+            temp_ekey_path = tmp.name
 
-                labels = list(library.keys())
-                st.info(f"🔓 Unlocked Library! Evaluating {len(labels)} keys against ciphertext...")
+        try:
+            bundle = load_library_encrypted(temp_ekey_path, dec_password)
+            ciphertext = np.load(npy_file)
+            library = bundle["library"]
+            is_color = bundle["is_color"]
+            original_hash = bundle["original_hash"]
 
-                correct_label = None
-                best_decrypted = None
-                tried_labels = []
-                key_scores = []
+            labels = list(library.keys())
+            pbar = progress_bar.progress(0)
 
-                progress_bar = st.progress(0)
-                status_text = st.empty()
-                chart_placeholder = st.empty()
+            correct_label = None
+            best_decrypted = None
+            attempts = []
 
-                for i, label in enumerate(labels):
-                    P1, P2 = get_pair(library, label)
+            for i, label in enumerate(labels):
+                P1, P2 = get_pair(library, label)
+                decrypted = decrypt_rgb(ciphertext, P1, P2) if is_color else decrypt(ciphertext, P1, P2)
 
-                    if is_color:
-                        decrypted = decrypt_rgb(ciphertext, P1, P2)
-                    else:
-                        decrypted = decrypt(ciphertext, P1, P2)
+                score = image_score(decrypted)
+                current_hash = compute_image_hash(decrypted)
+                is_match = current_hash == original_hash
 
-                    score = image_score(decrypted)
-                    tried_labels.append(label)
-                    key_scores.append(score)
+                attempts.append({
+                    "label": label,
+                    "score": score,
+                    "decrypted": decrypted,
+                    "is_match": is_match,
+                })
 
-                    current_hash = compute_image_hash(decrypted)
+                if is_match:
+                    correct_label = label
+                    best_decrypted = decrypted
 
-                    # Live Bar Chart Update
-                    fig_scores = create_key_scores_fig(tried_labels, key_scores, correct_label=label if current_hash == original_hash else None)
-                    chart_placeholder.pyplot(fig_scores)
+                status_text.text(f"Testing key {i+1}/{len(labels)} ({label})... Score: {score:.4f}")
+                pbar.progress((i + 1) / len(labels))
 
-                    if current_hash == original_hash:
-                        correct_label = label
-                        best_decrypted = decrypted
-                        progress_bar.progress(1.0)
-                        status_text.success(f"🎯 Match Found! Key Pair: {label}")
-                        break
+            os.remove(temp_ekey_path)
 
-                    progress_bar.progress((i + 1) / len(labels))
-                    status_text.text(f"Testing key {i+1}/{len(labels)} ({label})... Score: {score:.4f}")
+            if correct_label and best_decrypted is not None:
+                status_text.success(f"🎯 Match found: {correct_label} (tested all {len(labels)} keys)")
+                st.session_state["dec_result"] = {
+                    "decrypted": best_decrypted,
+                    "ciphertext": ciphertext,
+                    "correct_label": correct_label,
+                    "attempts": attempts,
+                    "original_hash": original_hash,
+                }
+            else:
+                st.error("❌ No key in this library reconstructs the ciphertext.")
 
+        except ValueError:
+            if os.path.exists(temp_ekey_path):
                 os.remove(temp_ekey_path)
+            st.error("❌ Incorrect password or corrupted .ekey file!")
 
-                if correct_label and best_decrypted is not None:
-                    st.session_state["dec_result"] = {
-                        "decrypted": best_decrypted,
-                        "ciphertext": ciphertext,
-                        "correct_label": correct_label,
-                        "labels": tried_labels,
-                        "scores": key_scores,
-                        "original_hash": original_hash
-                    }
-                else:
-                    st.error("❌ Could not match key in library. (Hash mismatch or wrong ciphertext)")
-
-            except ValueError:
-                if os.path.exists(temp_ekey_path):
-                    os.remove(temp_ekey_path)
-                st.error("❌ Incorrect password or corrupted .ekey file!")
-
-    # Decryption Metrics & Quality Visualizations
+    # ==========================================================================
+    # RESULT — centered, below everything above
+    # ==========================================================================
     if "dec_result" in st.session_state:
         res_dec = st.session_state["dec_result"]
-        dec_img = res_dec["decrypted"]
+
+        result_left, result_center, result_right = st.columns([1, 2, 1])
+        with result_center:
+            st.image(
+                res_dec["decrypted"],
+                caption=f"Decrypted with correct key: {res_dec['correct_label']}",
+                width='stretch',
+            )
+            dec_img_uint8 = (np.clip(res_dec["decrypted"], 0, 1) * 255).astype(np.uint8)
+            pil_img = Image.fromarray(dec_img_uint8)
+            buf = io.BytesIO()
+            pil_img.save(buf, format="PNG")
+            buf.seek(0)
+
+            st.download_button(
+                label="⬇️ Download Decrypted Image",
+                data=buf,
+                file_name=f"decrypted_img.png",
+                mime="image/png",
+                width='stretch',
+            )
+
+        # ======================================================================
+        # ALL 10 ATTEMPTS — scrollable row
+        # ======================================================================
+        attempts = res_dec["attempts"]
 
         st.markdown("---")
-        st.markdown("### 🖼️ Decrypted Reconstruction Output")
+        st.markdown("<h4 style='text-align: center;'>🧪 All Key Attempts</h4>", unsafe_allow_html=True)
+        st.caption(
+            f"<p style='text-align: center;'>{len(attempts)} key(s) tried before a match was found (or exhausted).</p>",
+            unsafe_allow_html=True
+        )
 
-        dcol1, dcol2 = st.columns([1, 1], gap="medium")
-        with dcol1:
-            st.image(dec_img, caption=f"Decrypted Image (Key: {res_dec['correct_label']})", width='stretch')
+        st.markdown(
+            """
+            <style>
+            .attempts-scroll-row {
+                display: flex;
+                overflow-x: auto;
+                gap: 1rem;
+                padding: 0.5rem 0 1rem 0;
+            }
+            .attempts-scroll-row > div {
+                flex: 0 0 auto;
+                width: 180px;
+            }
+            </style>
+            """,
+            unsafe_allow_html=True,
+        )
 
-        with dcol2:
-            st.markdown('<div class="glass-card">', unsafe_allow_html=True)
-            st.markdown("#### Quality & Cryptographic Metrics")
+        cols_per_row = 5
+        for row_start in range(0, len(attempts), cols_per_row):
+            row_attempts = attempts[row_start: row_start + cols_per_row]
+            grid_cols = st.columns(len(row_attempts))
+            for col, attempt in zip(grid_cols, row_attempts):
+                with col:
+                    caption = f"{attempt['label']}\nscore: {attempt['score']:.3f}"
+                    if attempt["is_match"]:
+                        caption = "✅ " + caption
+                    st.image(attempt["decrypted"], caption=caption, width='stretch')
 
-            m1, m2 = st.columns(2)
-            with m1:
-                st.markdown('<div class="metric-box"><div class="metric-value">Exact</div><div class="metric-label">SHA-256 Hash Match</div></div>', unsafe_allow_html=True)
-                st.write("")
-                st.markdown('<div class="metric-box"><div class="metric-value">~10⁻¹⁵</div><div class="metric-label">Float Precision MSE</div></div>', unsafe_allow_html=True)
-            with m2:
-                st.markdown('<div class="metric-box"><div class="metric-value">∞ dB</div><div class="metric-label">Peak SNR (PSNR)</div></div>', unsafe_allow_html=True)
-                st.write("")
-                st.markdown('<div class="metric-box"><div class="metric-value">1.000</div><div class="metric-label">SSIM Index</div></div>', unsafe_allow_html=True)
-            st.markdown('</div>', unsafe_allow_html=True)
+        # ======================================================================
+        # ANALYSIS — centered, below attempts
+        # ======================================================================
+        st.markdown("---")
+        st.markdown("<h4 style='text-align: center;'>📊 Key Attempt Analysis</h4>", unsafe_allow_html=True)
 
-        if "enc_result" in st.session_state:
-            st.markdown("#### 📊 Pixel Intensity Comparison (Original vs Ciphertext vs Decrypted)")
-            fig_hist3 = create_histogram_fig(st.session_state["enc_result"]["original_image"], res_dec["ciphertext"], dec_img)
-            st.pyplot(fig_hist3)
+        labels_list = [a["label"] for a in attempts]
+        scores_list = [a["score"] for a in attempts]
+
+        analysis_left, analysis_center, analysis_right = st.columns([1, 3, 1])
+        with analysis_center:
+            fig_scores = create_key_scores_fig(
+                labels_list, scores_list, correct_label=res_dec["correct_label"]
+            )
+            st.pyplot(fig_scores)
+
+            if "enc_result" in st.session_state:
+                st.markdown(
+                    "<p style='text-align: center;'>Pixel Intensity Comparison (Original vs Ciphertext vs Decrypted)</p>",
+                    unsafe_allow_html=True
+                )
+                fig_hist3 = create_histogram_fig(
+                    st.session_state["enc_result"]["original_image"], res_dec["ciphertext"], res_dec["decrypted"]
+                )
+                st.pyplot(fig_hist3)
 
 
 # ==============================================================================
