@@ -25,6 +25,7 @@ from utils.visualizations import (
     create_phase_spectrum_fig,
     create_key_scores_fig,
     generate_drpe_intermediate_stages,
+    create_correlation_scatter_fig
 )
 
 st.set_page_config(
@@ -614,11 +615,20 @@ with tab_c:
         - **Exact Recovery**: Multiplying by complex conjugates $P_2^*$ and $P_1^*$ cancels out both phase delays, yielding the original image with zero loss ($10^{-15}$ precision).
         - **Wrong Key Failure**: Using even a slightly incorrect key leaves random phase residual noise, producing pure stationary noise.
         """)
+        correct_mse = mse(stages["stage1_input"], stages["stage6_correct"])
+        correct_psnr = psnr(stages["stage1_input"], stages["stage6_correct"])
+        wrong_mse = mse(stages["stage1_input"], stages["stage6_wrong"])
+        wrong_psnr = psnr(stages["stage1_input"], stages["stage6_wrong"])
+
         sc1, sc2 = st.columns([1, 1], gap="medium")
         with sc1:
             st.image(stages["stage6_correct"], caption="Decryption with Correct Key (Exact Recovery)", width='stretch', clamp=True)
+            correct_psnr_label = "∞ dB" if correct_psnr == float("inf") else f"{correct_psnr:.2f} dB"
+            st.markdown(f"**PSNR:** {correct_psnr_label}  |  **MSE:** {correct_mse:.2e}")
         with sc2:
             st.image(stages["stage6_wrong"], caption="Decryption with Invalid Key (Zero Visual Info)", width='stretch', clamp=True)
+            wrong_psnr_label = "∞ dB" if wrong_psnr == float("inf") else f"{wrong_psnr:.2f} dB"
+            st.markdown(f"**PSNR:** {wrong_psnr_label}  |  **MSE:** {wrong_mse:.2e}")
 
     # ==========================================================================
     # PHASE MASK VISUALIZATION
@@ -650,3 +660,23 @@ with tab_c:
 
     fig_hist_demo = create_histogram_fig(demo_gray_img, demo_ciphertext, demo_decrypted)
     st.pyplot(fig_hist_demo)
+
+    # ==========================================================================
+    # ADJACENT PIXEL CORRELATION ANALYSIS
+    # ==========================================================================
+    st.markdown("---")
+    st.markdown("<h4 style='text-align: center;'>🔗 Adjacent Pixel Correlation Analysis</h4>", unsafe_allow_html=True)
+    st.markdown(
+        "<p style='text-align: center;'>Real images have strong correlation between neighboring pixels "
+        "(r close to 1). A properly randomized ciphertext should show near-zero correlation.</p>",
+        unsafe_allow_html=True
+    )
+
+    corr_direction = st.selectbox(
+        "Pixel pair direction:",
+        ["horizontal", "vertical", "diagonal"],
+        key="corr_direction_select",
+    )
+
+    fig_corr_scatter = create_correlation_scatter_fig(demo_gray_img, demo_ciphertext, direction=corr_direction)
+    st.pyplot(fig_corr_scatter)

@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import numpy as np
 import matplotlib.pyplot as plt
-from core.metrics import psnr, mse, image_score
+from core.metrics import adjacent_pixel_correlation
 from core.drpe import decrypt
 
 
@@ -199,3 +199,41 @@ def generate_drpe_intermediate_stages(image: np.ndarray, P1: np.ndarray, P2: np.
         "stage6_wrong": stage6_wrong,
     }
 
+
+def create_correlation_scatter_fig(original: np.ndarray, ciphertext: np.ndarray, direction: str = "horizontal"):
+    """
+    Side-by-side scatter plots of adjacent-pixel correlation for the original
+    image vs the ciphertext magnitude. Real images cluster along a diagonal;
+    properly encrypted ciphertext should scatter randomly.
+    """
+    c_mag = np.abs(ciphertext)
+    c_norm = (c_mag - c_mag.min()) / (c_mag.max() - c_mag.min() + 1e-12)
+
+    ox, oy, o_corr = adjacent_pixel_correlation(original, direction)
+    cx, cy, c_corr = adjacent_pixel_correlation(c_norm, direction)
+
+    fig, axes = plt.subplots(1, 2, figsize=(11, 4.5), dpi=100)
+    fig.patch.set_facecolor('#0E1117')
+
+    axes[0].scatter(ox, oy, s=4, color='#00D2FF', alpha=0.5, edgecolors='none')
+    axes[0].set_title(f"Original Image  (r = {o_corr:.3f})", color='#E0E0E0', fontsize=11, fontweight='bold')
+    axes[0].set_xlabel(f"Pixel value at (x, y)", color='#AAAAAA', fontsize=9)
+    axes[0].set_ylabel(f"Pixel value at neighbor ({direction})", color='#AAAAAA', fontsize=9)
+    axes[0].set_facecolor('#161B22')
+    axes[0].tick_params(colors='#AAAAAA', labelsize=8)
+    axes[0].set_xlim(0, 1)
+    axes[0].set_ylim(0, 1)
+    axes[0].grid(True, linestyle='--', alpha=0.2, color='#555555')
+
+    axes[1].scatter(cx, cy, s=4, color='#FF007A', alpha=0.5, edgecolors='none')
+    axes[1].set_title(f"Ciphertext  (r = {c_corr:.3f})", color='#E0E0E0', fontsize=11, fontweight='bold')
+    axes[1].set_xlabel(f"Pixel value at (x, y)", color='#AAAAAA', fontsize=9)
+    axes[1].set_ylabel(f"Pixel value at neighbor ({direction})", color='#AAAAAA', fontsize=9)
+    axes[1].set_facecolor('#161B22')
+    axes[1].tick_params(colors='#AAAAAA', labelsize=8)
+    axes[1].set_xlim(0, 1)
+    axes[1].set_ylim(0, 1)
+    axes[1].grid(True, linestyle='--', alpha=0.2, color='#555555')
+
+    plt.tight_layout()
+    return fig
