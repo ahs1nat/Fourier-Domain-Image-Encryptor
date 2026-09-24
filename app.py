@@ -160,10 +160,9 @@ def uploaded_file_to_array(file):
 
 
 # Tab Setup
-tab_a, tab_b, tab_c, tab_d = st.tabs([
+tab_a, tab_b, tab_c = st.tabs([
     "🔒 Encrypt",
     "🔓 Decrypt",
-    "🔍 Phase Mask Inspector",
     "📘 How DRPE Works"
 ])
 
@@ -288,7 +287,7 @@ with tab_a:
                     mime="application/octet-stream",
                     width='stretch',
                 )
-            st.markdown('</div>', unsafe_allow_html=True)
+            #st.markdown('</div>', unsafe_allow_html=True)
 
     # Pixel Intensity Histogram Analysis
     if "enc_result" in st.session_state:
@@ -388,7 +387,7 @@ with tab_b:
             st.error("❌ Incorrect password or corrupted .ekey file!")
 
     # ==========================================================================
-    # RESULT — centered, below everything above
+    # RESULT
     # ==========================================================================
     if "dec_result" in st.session_state:
         res_dec = st.session_state["dec_result"]
@@ -415,7 +414,7 @@ with tab_b:
             )
 
         # ======================================================================
-        # ALL 10 ATTEMPTS — scrollable row
+        # ALL 10 ATTEMPTS
         # ======================================================================
         attempts = res_dec["attempts"]
 
@@ -456,7 +455,7 @@ with tab_b:
                     st.image(attempt["decrypted"], caption=caption, width='stretch')
 
         # ======================================================================
-        # ANALYSIS — centered, below attempts
+        # ANALYSIS
         # ======================================================================
         st.markdown("---")
         st.markdown("<h4 style='text-align: center;'>📊 Key Attempt Analysis</h4>", unsafe_allow_html=True)
@@ -471,78 +470,62 @@ with tab_b:
             )
             st.pyplot(fig_scores)
 
-            if "enc_result" in st.session_state:
-                st.markdown(
-                    "<p style='text-align: center;'>Pixel Intensity Comparison (Original vs Ciphertext vs Decrypted)</p>",
-                    unsafe_allow_html=True
-                )
-                fig_hist3 = create_histogram_fig(
-                    st.session_state["enc_result"]["original_image"], res_dec["ciphertext"], res_dec["decrypted"]
-                )
-                st.pyplot(fig_hist3)
-
-
 # ==============================================================================
-# TAB C: PHASE MASK INSPECTOR
+# TAB C: HOW DRPE WORKS (VISUAL WALKTHROUGH)
 # ==============================================================================
 with tab_c:
-    st.markdown("### 🔍 Phase Mask Inspection & Randomness Analysis")
-    st.caption("Inspect the spatial phase mask ($P_1$) and Fourier spectral phase mask ($P_2$) unit circle distributions.")
+    st.markdown("<h3 style='text-align: center;'>📘 Double Random Phase Encoding (DRPE) — Step-by-Step Procedure</h3>", unsafe_allow_html=True)
+    st.caption("<p style='text-align: center;'>Double Random Phase Encoding simulates an optical 4-f correlator system using 2D Fast Fourier Transforms (FFT).</p>", unsafe_allow_html=True)
 
-    if "enc_result" in st.session_state:
-        P1 = st.session_state["enc_result"]["P1"]
-        P2 = st.session_state["enc_result"]["P2"]
-        fig_phase = create_phase_spectrum_fig(P1, P2)
-        st.pyplot(fig_phase)
-    else:
-        # Generate demo masks for visual inspection
-        demo_shape = (256, 256)
-        P1_demo = generate_phase_mask(demo_shape)
-        P2_demo = generate_phase_mask(demo_shape)
-        st.info("Showing generated demo phase masks (encrypt an image in Tab A to inspect your custom key pair):")
-        fig_phase = create_phase_spectrum_fig(P1_demo, P2_demo)
-        st.pyplot(fig_phase)
-
-
-# ==============================================================================
-# TAB D: HOW DRPE WORKS (VISUAL WALKTHROUGH)
-# ==============================================================================
-with tab_d:
-    st.markdown("### 📘 Double Random Phase Encoding (DRPE) — Step-by-Step Procedure")
-    st.caption("Double Random Phase Encoding simulates an optical 4-f correlator system using 2D Fast Fourier Transforms (FFT).")
-
-    st.markdown("""
+    diagram_left, diagram_center, diagram_right = st.columns([1, 2, 1])
+    with diagram_center:
+        st.markdown("""
     ```text
     [ Input Image I(x,y) ]
-             │
-             ▼
-     [ × Spatial Mask P1(x,y) ]   ──> Phase modulation: P1 = exp(j * 2π * r1)
-             │
-             ▼
+            │
+            ▼
+    [ × Spatial Mask P1(x,y) ]   ──> Phase modulation: P1 = exp(j * 2π * r1)
+            │
+            ▼
         [ 2D FFT ]                ──> Transform to 2D Spatial Frequency Domain
-             │
-             ▼
+            │
+            ▼
     [ × Spectral Mask P2(u,v) ]   ──> Spectral Modulation: P2 = exp(j * 2π * r2)
-             │
-             ▼
-       [ 2D IFFT ]                ──> Inverse Fourier Transform
-             │
-             ▼
+            │
+            ▼
+    [ 2D IFFT ]                ──> Inverse Fourier Transform
+            │
+            ▼
     [ Ciphertext C(x,y) ]         ──> Complex Stationary White Noise Wave
     ```
-    """)
+        """)
+    # ==========================================================================
+    # UPLOAD IMAGE — optional, falls back to sample/demo image if not provided
+    # ==========================================================================
+    st.markdown("---")
+    st.markdown("<h4 style='text-align: center;'>🖼️ Upload an Image (optional)</h4>", unsafe_allow_html=True)
+    st.caption(
+        "<p style='text-align: center;'>Upload your own image to walk through the pipeline, or leave empty to use the built-in demo image.</p>",
+        unsafe_allow_html=True
+    )
+    demo_upload_left, demo_upload_center, demo_upload_right = st.columns([1, 2, 1])
+    with demo_upload_center:
+        demo_uploaded_file = st.file_uploader(
+            "Upload an image for this walkthrough:", type=["png", "jpg", "jpeg"], key="drpe_demo_uploader"
+        )
+
+    if demo_uploaded_file is not None:
+        sample_img = np.asarray(Image.open(demo_uploaded_file).convert("L"), dtype=np.float64) / 255.0
+    else:
+        sample_path = os.path.join("data", "sample_input.png")
+        if os.path.exists(sample_path):
+            sample_img = np.asarray(Image.open(sample_path).convert("L"), dtype=np.float64) / 255.0
+        else:
+            x, y = np.meshgrid(np.linspace(-1, 1, 256), np.linspace(-1, 1, 256))
+            sample_img = np.where((x**2 + y**2) < 0.5, 0.9, 0.1)
 
     st.markdown("---")
-    st.markdown("### 🔬 Interactive Pipeline Stage Inspector")
-
-    # Load sample image for demonstration
-    sample_path = os.path.join("data", "sample_input.png")
-    if os.path.exists(sample_path):
-        sample_img = np.asarray(Image.open(sample_path).convert("L"), dtype=np.float64) / 255.0
-    else:
-        # Generate synthetic target pattern
-        x, y = np.meshgrid(np.linspace(-1, 1, 256), np.linspace(-1, 1, 256))
-        sample_img = np.where((x**2 + y**2) < 0.5, 0.9, 0.1)
+    st.markdown("<h4 style='text-align: center;'>🔄 Interactive DRPE Pipeline</h4>", unsafe_allow_html=True)
 
     P1_sim = generate_phase_mask(sample_img.shape)
     P2_sim = generate_phase_mask(sample_img.shape)
@@ -560,76 +543,110 @@ with tab_d:
         ]
     )
 
-    sc1, sc2 = st.columns([1, 1], gap="medium")
-
     if stage_option.startswith("Stage 1"):
+        st.markdown(r"""
+        #### Stage 1: Spatial Domain Input
+        - **Function**: Represents the raw image pixel intensity $I(x, y) \in [0, 1]$.
+        - **Mathematical Domain**: Spatial Coordinates $(x, y)$.
+        - **Property**: Contains structured visual features, object boundaries, and spatial correlations.
+        """)
+        sc1, sc2 = st.columns([1, 1], gap="medium")
         with sc1:
-            st.image(stages["stage1_input"], caption="Original Image I(x, y)", width='stretch', clamp=True)
-        with sc2:
-            st.markdown(r"""
-            #### Stage 1: Spatial Domain Input
-            - **Function**: Represents the raw image pixel intensity $I(x, y) \in [0, 1]$.
-            - **Mathematical Domain**: Spatial Coordinates $(x, y)$.
-            - **Property**: Contains structured visual features, object boundaries, and spatial correlations.
-            """)
+            st.image(stages["stage1_input"], caption="Original Image I(x, y) (grayscale)", width='stretch', clamp=True)
 
     elif stage_option.startswith("Stage 2"):
+        st.markdown(r"""
+        #### Stage 2: Spatial Phase Modulation
+        - **Formula**: $f(x, y) = I(x, y) \cdot P_1(x, y) = I(x, y) \cdot e^{j 2\pi r_1(x, y)}$
+        - **Function**: Multiplies input pixels by a uniform random phase mask $P_1(x, y)$ on the complex unit circle.
+        - **Effect**: Scrambles the spatial phase while maintaining the original magnitude $|I(x, y)|$.
+        """)
+        sc1, sc2 = st.columns([1, 1], gap="medium")
         with sc1:
             st.image(stages["stage2_mag"], caption="Magnitude |I(x, y) · P1(x, y)|", width='stretch', clamp=True)
         with sc2:
             st.image(stages["stage2_phase"], caption="Phase Angle ∠(I · P1) [0, 2π]", width='stretch', clamp=True)
-            st.markdown(r"""
-            #### Stage 2: Spatial Phase Modulation
-            - **Formula**: $f(x, y) = I(x, y) \cdot P_1(x, y) = I(x, y) \cdot e^{j 2\pi r_1(x, y)}$
-            - **Function**: Multiplies input pixels by a uniform random phase mask $P_1(x, y)$ on the complex unit circle.
-            - **Effect**: Scrambles the spatial phase while maintaining the original magnitude $|I(x, y)|$.
-            """)
 
     elif stage_option.startswith("Stage 3"):
+        st.markdown(r"""
+        #### Stage 3: 2D Fourier Transformation
+        - **Formula**: $F(u, v) = \mathcal{F}\left\{ I(x, y) \cdot P_1(x, y) \right\}$
+        - **Function**: Transforms spatial signals into spatial frequency coordinates $(u, v)$ using 2D FFT.
+        - **Effect**: Spreads spatial information evenly across the entire frequency spectrum.
+        """)
+        sc1, sc2 = st.columns([1, 1], gap="medium")
         with sc1:
             st.image(stages["stage3_mag_log"], caption="Log Magnitude Spectrum log(1 + |FFT|)", width='stretch', clamp=True)
         with sc2:
             st.image(stages["stage3_phase"], caption="Fourier Phase Spectrum ∠FFT", width='stretch', clamp=True)
-            st.markdown(r"""
-            #### Stage 3: 2D Fourier Transformation
-            - **Formula**: $F(u, v) = \mathcal{F}\left\{ I(x, y) \cdot P_1(x, y) \right\}$
-            - **Function**: Transforms spatial signals into spatial frequency coordinates $(u, v)$ using 2D FFT.
-            - **Effect**: Spreads spatial information evenly across the entire frequency spectrum.
-            """)
 
     elif stage_option.startswith("Stage 4"):
+        st.markdown(r"""
+        #### Stage 4: Fourier Plane Spectral Phase Modulation
+        - **Formula**: $G(u, v) = F(u, v) \cdot P_2(u, v) = F(u, v) \cdot e^{j 2\pi r_2(u, v)}$
+        - **Function**: Multiplies the frequency spectrum by independent random phase mask $P_2(u, v)$.
+        - **Effect**: Completely randomizes the spectral phase components required to reconstruct the image.
+        """)
+        sc1, sc2 = st.columns([1, 1], gap="medium")
         with sc1:
             st.image(stages["stage4_mag_log"], caption="Modulated Log Spectrum log(1 + |F · P2|)", width='stretch', clamp=True)
         with sc2:
             st.image(stages["stage4_phase"], caption="Modulated Phase Spectrum ∠(F · P2)", width='stretch', clamp=True)
-            st.markdown(r"""
-            #### Stage 4: Fourier Plane Spectral Phase Modulation
-            - **Formula**: $G(u, v) = F(u, v) \cdot P_2(u, v) = F(u, v) \cdot e^{j 2\pi r_2(u, v)}$
-            - **Function**: Multiplies the frequency spectrum by independent random phase mask $P_2(u, v)$.
-            - **Effect**: Completely randomizes the spectral phase components required to reconstruct the image.
-            """)
 
     elif stage_option.startswith("Stage 5"):
+        st.markdown(r"""
+        #### Stage 5: Final Ciphertext (Stationary White Noise)
+        - **Formula**: $C(x, y) = \mathcal{F}^{-1}\left\{ \mathcal{F}\left\{ I \cdot P_1 \right\} \cdot P_2 \right\}$
+        - **Property**: Complex-valued wave function whose amplitude and phase form stationary white Gaussian noise.
+        - **Security**: Without knowledge of both phase masks ($P_1, P_2$), no statistical or visual information can be extracted.
+        """)
+        sc1, sc2 = st.columns([1, 1], gap="medium")
         with sc1:
             st.image(stages["stage5_cipher_mag"], caption="Ciphertext Magnitude |C(x, y)|", width='stretch', clamp=True)
         with sc2:
             st.image(stages["stage5_cipher_phase"], caption="Ciphertext Phase ∠C(x, y)", width='stretch', clamp=True)
-            st.markdown(r"""
-            #### Stage 5: Final Ciphertext (Stationary White Noise)
-            - **Formula**: $C(x, y) = \mathcal{F}^{-1}\left\{ \mathcal{F}\left\{ I \cdot P_1 \right\} \cdot P_2 \right\}$
-            - **Property**: Complex-valued wave function whose amplitude and phase form stationary white Gaussian noise.
-            - **Security**: Without knowledge of both phase masks ($P_1, P_2$), no statistical or visual information can be extracted.
-            """)
 
     elif stage_option.startswith("Stage 6"):
+        st.markdown(r"""
+        #### Stage 6: Decryption & Key Sensitivity
+        - **Decryption Formula**:
+          $$\text{Decrypted} = \left| \mathcal{F}^{-1}\left\lbrace \mathcal{F}\lbrace C(x, y) \rbrace \cdot P_2^{\ast}(u, v) \right\rbrace \cdot P_1^{\ast}(x, y) \right|$$
+        - **Exact Recovery**: Multiplying by complex conjugates $P_2^*$ and $P_1^*$ cancels out both phase delays, yielding the original image with zero loss ($10^{-15}$ precision).
+        - **Wrong Key Failure**: Using even a slightly incorrect key leaves random phase residual noise, producing pure stationary noise.
+        """)
+        sc1, sc2 = st.columns([1, 1], gap="medium")
         with sc1:
             st.image(stages["stage6_correct"], caption="Decryption with Correct Key (Exact Recovery)", width='stretch', clamp=True)
         with sc2:
             st.image(stages["stage6_wrong"], caption="Decryption with Invalid Key (Zero Visual Info)", width='stretch', clamp=True)
-            st.markdown(r"""
-            #### Stage 6: Decryption & Key Sensitivity
-            - **Decryption Formula**:
-              $$\text{Decrypted} = \left| \mathcal{F}^{-1}\left\lbrace \mathcal{F}\lbrace C(x, y) \rbrace \cdot P_2^{\ast}(u, v) \right\rbrace \cdot P_1^{\ast}(x, y) \right|$$
-            - **Exact Recovery**: Multiplying by complex conjugates $P_2^*$ and $P_1^*$ cancels out both phase delays, yielding the original image with zero loss ($10^{-15}$ precision).
-            - **Wrong Key Failure**: Using even a slightly incorrect key leaves random phase residual noise, producing pure stationary noise.
-            """)
+
+    # ==========================================================================
+    # PHASE MASK VISUALIZATION
+    # ==========================================================================
+    st.markdown("---")
+    st.markdown("<h4 style='text-align: center;'>🔑 Phase Mask Visualization</h4>", unsafe_allow_html=True)
+    st.caption(
+        "<p style='text-align: center;'>Visualize the spatial phase mask ($P_1$) and Fourier spectral phase mask ($P_2$) "
+        "used by the DRPE system for this walkthrough's image.</p>",
+        unsafe_allow_html=True
+    )
+
+    fig_phase = create_phase_spectrum_fig(P1_sim, P2_sim)
+    st.pyplot(fig_phase)
+
+    # ==========================================================================
+    # PIXEL DISTRIBUTION ANALYSIS
+    # ==========================================================================
+    st.markdown("---")
+    st.markdown("<h4 style='text-align: center;'>📊 Pixel Distribution Analysis</h4>", unsafe_allow_html=True)
+    st.caption(
+        "<p style='text-align: center;'>Pixel Intensity Comparison (Original vs Ciphertext vs Decrypted), using this walkthrough's image and keys.</p>",
+        unsafe_allow_html=True
+    )
+
+    demo_gray_img = stages["stage1_input"]
+    demo_ciphertext = encrypt(demo_gray_img, P1_sim, P2_sim)
+    demo_decrypted = decrypt(demo_ciphertext, P1_sim, P2_sim)
+
+    fig_hist_demo = create_histogram_fig(demo_gray_img, demo_ciphertext, demo_decrypted)
+    st.pyplot(fig_hist_demo)

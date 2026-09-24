@@ -10,6 +10,7 @@ from __future__ import annotations
 import numpy as np
 import matplotlib.pyplot as plt
 from core.metrics import psnr, mse, image_score
+from core.drpe import decrypt
 
 
 def create_histogram_fig(original: np.ndarray, ciphertext: np.ndarray, decrypted: np.ndarray | None = None):
@@ -180,14 +181,9 @@ def generate_drpe_intermediate_stages(image: np.ndarray, P1: np.ndarray, P2: np.
     stage5_phase = (np.angle(ciphertext_complex) % (2 * np.pi)) / (2 * np.pi)
 
     # Stage 6: Decryption with correct vs wrong key
-    c_fft = np.fft.fft2(ciphertext_complex)
-    dec_step1 = c_fft * np.conj(P2)
-    dec_step2 = np.fft.ifft2(dec_step1)
-    stage6_correct = norm(np.abs(dec_step2 * np.conj(P1)))
-
-    # Wrong key decryption
-    P1_wrong = np.exp(1j * 2 * np.pi * np.random.rand(*image.shape[:2]))
-    stage6_wrong = norm(np.abs(dec_step2 * np.conj(P1_wrong)))
+    stage6_correct = norm(np.abs(decrypt(ciphertext_complex, P1, P2)))
+    P2_wrong = np.exp(1j * 2 * np.pi * np.random.rand(*image.shape[:2]))
+    stage6_wrong = norm(np.abs(decrypt(ciphertext_complex, P1, P2_wrong)))
 
     return {
         "stage1_input": stage1,
