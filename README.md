@@ -172,9 +172,3 @@ python -m unittest discover -s tests -v
   - **Key Derivation Function**: PBKDF2-HMAC-SHA256.
   - **Work Factor**: 480,000 iterations.
   - **Salt**: 32-byte cryptographically secure random salt (`os.urandom(32)`).
-
----
-
-## 📜 License
-
-Distributed under the MIT License. See `LICENSE` for more information.
