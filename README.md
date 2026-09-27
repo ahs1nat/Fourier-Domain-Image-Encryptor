@@ -1,6 +1,6 @@
 # 🔐 Fourier-Domain Image Encryptor
 
-An optical cryptography suite implementing **Double Random Phase Encoding (DRPE)** in the Fourier domain using a 4-$f$ optical correlator architecture. Supports grayscale and full-colour RGB image encryption, password-protected key library storage (AES-256), quantitative reconstruction metrics (PSNR, MSE, SSIM), pixel intensity distribution histograms, real-time brute-force key match scoring, and a modern glassmorphic Streamlit web application.
+An optical cryptography suite implementing **Double Random Phase Encoding (DRPE)** in the Fourier domain using a 4-$f$ optical correlator architecture. Supports grayscale and full-colour RGB image encryption, password-protected key library storage (AES-256), quantitative reconstruction metrics (PSNR, MSE), pixel intensity distribution histograms, real-time brute-force key match scoring, and a modern glassmorphic Streamlit web application.
 
 ---
 
@@ -13,7 +13,7 @@ An optical cryptography suite implementing **Double Random Phase Encoding (DRPE)
   - Discrete 8-bit rounding exact **SHA-256** hash match verification.
 - **RGB & Grayscale Processing**:
   - Independent channel-wise encryption and decryption for full-colour RGB images.
-  - Automatic padding to standardized canvas sizes with exact crop-back on recovery.
+  - Automatic mode detection on upload (grayscale vs. RGB) with per-channel DRPE applied uniformly.
 - **Secure Key Management**:
   - Unique human-readable key identifiers (`KEY-XXXX-YYYY`).
   - Password-protected `.ekey` bundles using **AES-256 (Fernet)** with **PBKDF2-HMAC-SHA256** (480,000 iterations).
@@ -21,6 +21,7 @@ An optical cryptography suite implementing **Double Random Phase Encoding (DRPE)
   - **Pixel Intensity Histograms**: Compare original pixel distribution vs. ciphertext magnitude (stationary white noise) vs. decrypted image.
   - **Brute-Force Key Match Score Plot**: Live bar chart rendered during decryption showing the exact image smoothness gradient score for each tested key.
   - **Phase Mask Inspector**: 2D spatial phase maps and 1D angle distribution histograms $[0, 2\pi]$ to verify uniform randomness.
+  - **Adjacent Pixel Correlation Analysis**: Scatter plots of neighboring pixel pairs (horizontal, vertical, or diagonal) contrasting the strong correlation in real images against the near-zero correlation of the ciphertext.
 - **Interactive Visual Pipeline Inspector**:
   - Step-by-step visual walkthrough of all 6 mathematical stages of the DRPE 4-$f$ optical correlator system.
 - **Dual Interfaces**:
@@ -66,7 +67,7 @@ Where $P_1^{\ast}$ and $P_2^{\ast}$ denote the complex conjugates of phase masks
 
 ```text
 Fourier-Domain-Image-Encryptor/
-├── app.py                  # Streamlit web application (Glassmorphic UI & 4 Tabs)
+├── app.py                  # Streamlit web application (Glassmorphic UI & 3 Tabs)
 ├── main.py                 # Standalone CLI demo script
 ├── cmd.txt                 # Quick command reference
 ├── requirements.txt        # Python package dependencies
@@ -74,9 +75,9 @@ Fourier-Domain-Image-Encryptor/
 │   ├── __init__.py         # Core package exports
 │   ├── drpe.py             # DRPE encryption/decryption engine (Grayscale & RGB)
 │   ├── image_io.py         # Image loading, saving, and canvas padding helpers
-│   └── key_library.py      # Key pair generation & AES-256 encrypted storage
+│   ├── key_library.py      # Key pair generation & AES-256 encrypted storage
+│   └── metrics.py          # PSNR, MSE, image smoothness score, SHA-256 hash
 ├── utils/
-│   ├── metrics.py          # PSNR, MSE, image smoothness score, SHA-256 hash
 │   └── visualizations.py   # Pixel histograms, phase spectra, key score bar charts
 ├── tests/
 │   ├── test_drpe.py        # Unit tests for DRPE mathematics & hash matching
@@ -130,10 +131,9 @@ streamlit run app.py
 Then open your browser at `http://localhost:8501`.
 
 #### Available Web Tabs:
-1. **🔒 A — Encrypt**: Upload an image, generate a 10-key phase mask library, set a password for the `.ekey` bundle, download ciphertext (`.npy`) and key library, and inspect pixel distribution histograms.
-2. **🔓 B — Decrypt & Brute-Force**: Upload `.ekey` and `.npy`, unlock with password, evaluate key library against ciphertext with real-time bar chart scoring, verify SHA-256 hash match, view PSNR/SSIM/MSE metric cards, and plot 3-panel intensity distribution histograms.
-3. **🔍 Phase Mask Inspector**: Visualize 2D spatial ($P_1$) and Fourier spectral ($P_2$) phase maps alongside 1D angle distribution histograms $[0, 2\pi]$.
-4. **📘 How DRPE Works**: Step through an interactive 6-stage visual pipeline inspector showing the exact magnitude and phase outputs across all intermediate mathematical stages of DRPE.
+1. **🔒 Encrypt**: Upload an image, generate a 10-key phase mask library, set a password for the `.ekey` bundle, download the ciphertext (`.npy`) and key library, and inspect a 2-panel pixel distribution histogram (original vs. ciphertext).
+2. **🔓 Decrypt**: Upload `.ekey` and `.npy`, unlock with a password, brute-force the key library against the ciphertext with live per-key scoring and a SHA-256 hash match check, browse every key attempt in a thumbnail grid, and view a bar chart of image-smoothness scores across all tested keys.
+3. **📘 How DRPE Works**: Step through an interactive 6-stage visual pipeline (with PSNR/MSE metric cards on the decryption stage), plus supporting analysis panels for Phase Mask Inspection ($P_1$/$P_2$ spatial and spectral phase maps), a 3-panel pixel distribution histogram (original vs. ciphertext vs. decrypted), and Adjacent Pixel Correlation Analysis.
 
 ---
 
