@@ -146,11 +146,59 @@ st.markdown(
     """,
     unsafe_allow_html=True,
 )
-# st.divider()
+
+
+@st.dialog("How to Use This App", width="large")
+def show_help_dialog():
+    st.markdown(
+        """
+        Imagine you want to share a personal picture with a friend, but
+        you don't want anyone else to see it. This app
+        lets you encrypt it before sending and recover it later.
+
+        ### POV 1: Sending a Picture
+
+        1. Open **Encrypt** and upload a PNG or JPG image (up to 350 × 350 pixels).
+        2. Choose a password.
+        3. Click **Execute DRPE Encryption** to turn your picture into
+           something that looks like random noise.
+        4. Download both files (`.ekey` and `.npy`) and send them to your friend.
+
+        Share the password separately through a trusted channel to reduce
+        the risk of unauthorized access.
+
+        ### POV 2: Receiving a Picture
+
+        Your friend has sent you two files, and you've received the password
+        separately. Now you can recover the original picture.
+
+        1. Open the **Decrypt** tab.
+        2. Upload both files your friend sent you.
+        3. Enter the password.
+        4. Click **Decrypt & Brute-Force Keys** and let the app search for the correct key. When the correct key is found, the original picture will be
+        recovered, and you can download it.
+
+        ### Explore How It Works
+
+        If you're curious about how the picture is protected and recovered,
+        open the **How DRPE Works** tab. Upload an image and explore the
+        different stages of the process.
+
+        ---
+
+        We hope you enjoyed exploring image encryption!
+        """
+    )
+
+
+_, help_col = st.columns([8, 1])
+with help_col:
+    if st.button("Help", icon=":material/help:", key="help_btn", width="stretch"):
+        show_help_dialog()
 
 # App Header
 st.markdown('<div class="main-header">🔐 Fourier Domain Image Encryptor</div>', unsafe_allow_html=True)
-st.markdown('<div class="sub-header">Optical Cryptography Suite — Double Random Phase Encoding (DRPE) in the 4-f Correlator Plane</div>', unsafe_allow_html=True)
+st.markdown('<div class="sub-header">Image encryption and recovery powered by Double Random Phase Encoding (DRPE)</div>', unsafe_allow_html=True)
 
 
 def uploaded_file_to_array(file):
@@ -158,6 +206,24 @@ def uploaded_file_to_array(file):
     is_color = img.mode not in ("L", "1")
     img = img.convert("RGB") if is_color else img.convert("L")
     return np.asarray(img, dtype=np.float64) / 255.0, is_color
+
+
+MAX_PIXELS = 350 * 350   # max total pixels = 122,500
+
+def validate_image(file):
+    try:
+        width, height = Image.open(file).size   # reads only the header, not the pixels
+    except Exception:
+        return False, "This file could not be read as an image."
+    finally:
+        file.seek(0)                            # rewind so later reads work
+    if width * height > MAX_PIXELS:
+        return False, (
+            f"Image is {width}×{height}px ({width * height:,} pixels). "
+            f"Maximum is {MAX_PIXELS:,} pixels (about 350×350). "
+            "Please downscale it and upload again."
+        )
+    return True, ""
 
 
 # Tab Setup
@@ -173,16 +239,20 @@ tab_a, tab_b, tab_c = st.tabs([
 with tab_a:
     st.markdown("<h3 style='text-align: center;'>🔒 Encrypt Image with DRPE Key Library</h3>", unsafe_allow_html=True)
     st.caption(
-        "<p style='text-align: center;'>Upload an image to generate a 10-key phase mask library ($P_1, P_2$) and produce a noise-like ciphertext.</p>",
+        "<p style='text-align: center;'>Upload an image to generate a 10-key phase mask library and produce a noise-like ciphertext.</p>",
             unsafe_allow_html=True
     )
     col1, col2, col3 = st.columns([1, 1, 1])
     with col2:
         uploaded_file = st.file_uploader(
-        label="Choose an image to encrypt:",
+        label="Choose an image to encrypt (max. 122,500 pixels):",
         type=["png", "jpg", "jpeg"]
-    )
-    #uploaded_file = st.file_uploader(label="Choose an image to encrypt:", type=["png", "jpg", "jpeg"])
+        )
+        if uploaded_file is not None:
+            ok, msg = validate_image(uploaded_file)
+            if not ok:
+                st.error(msg)
+                uploaded_file = None
 
     if uploaded_file is None:
         st.session_state.pop("enc_result", None)
@@ -514,6 +584,11 @@ with tab_c:
         demo_uploaded_file = st.file_uploader(
             "Upload an image for this walkthrough:", type=["png", "jpg", "jpeg"], key="drpe_demo_uploader"
         )
+        if demo_uploaded_file is not None:
+            ok, msg = validate_image(demo_uploaded_file)
+            if not ok:
+                st.error(msg)
+                demo_uploaded_file = None
 
     if demo_uploaded_file is not None:
         sample_img = np.asarray(Image.open(demo_uploaded_file).convert("L"), dtype=np.float64) / 255.0
